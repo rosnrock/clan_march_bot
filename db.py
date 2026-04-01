@@ -22,16 +22,16 @@ async def connect_db():
 
 async def _migrate_v1_to_v2(db: aiosqlite.Connection) -> None:
     """Старый формат: clans(tag), players(clan_tag). Перенос с штатом по умолчанию 100."""
+    # В CHECK нельзя использовать ? — только литералы (ограничение SQLite).
     await db.execute(
-        """
+        f"""
         CREATE TABLE clans_new (
             tag TEXT NOT NULL CHECK (length(tag) = 3 AND tag GLOB '[A-Z][A-Z][A-Z]'),
-            state INTEGER NOT NULL CHECK (state >= ? AND state <= ?),
+            state INTEGER NOT NULL CHECK (state >= {STATE_MIN} AND state <= {STATE_MAX}),
             creator_id INTEGER NOT NULL,
             PRIMARY KEY (tag, state)
         )
-        """,
-        (STATE_MIN, STATE_MAX),
+        """
     )
     await db.execute(
         """
