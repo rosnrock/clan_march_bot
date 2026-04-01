@@ -110,8 +110,8 @@ async def cmd_start(message: Message) -> None:
         "(число можно писать с _ , . как разделителями разрядов).\n"
         "/update_player ABC НикИгрока 12,345,678 — обновить силу марша.\n"
         "/remove_player ABC НикИгрока — удалить игрока из списка.\n\n"
-        "/clan ABC — все игроки клана по убыванию силы марша.\n"
-        "/clan ABC 10 — только топ-10 по силе марша.\n\n"
+        "/clan ABC — список игроков (только для создателя клана).\n"
+        "/clan ABC 10 — топ-10 по силе марша (только создатель).\n\n"
         "Клан с одним тегом может быть только один."
     )
 
@@ -212,11 +212,13 @@ async def cmd_update_player(message: Message) -> None:
 
 
 async def cmd_clan(message: Message) -> None:
+    uid = message.from_user.id if message.from_user else 0
     parts = (message.text or "").split()
     if len(parts) < 2 or len(parts) > 3:
         await message.answer(
             "Формат: /clan ABC — все игроки по убыванию силы марша.\n"
-            "/clan ABC N — только N сильнейших (N — целое число от 1)."
+            "/clan ABC N — только N сильнейших (N — целое число от 1).\n"
+            "Список видит только создатель клана."
         )
         return
     tag = parse_tag(parts[1])
@@ -237,6 +239,16 @@ async def cmd_clan(message: Message) -> None:
             await message.answer("Укажи число не меньше 1 или вызови /clan ABC без лимита.")
             return
         limit = n
+    clan = await get_clan(tag)
+    if clan is None:
+        await message.answer(f"Клана {tag} нет в базе.")
+        return
+    _, creator_id = clan
+    if uid != creator_id:
+        await message.answer(
+            "Просматривать игроков клана может только тот, кто зарегистрировал этот клан в боте."
+        )
+        return
     rows = await list_players(tag, limit=limit)
     if rows is None:
         await message.answer(f"Клана {tag} нет в базе.")
